@@ -1,24 +1,35 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Query } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model } from 'mongoose';
 
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { Pokemon } from './entities/pokemon.entity';
-import { IsString } from 'class-validator';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ConfigService } from '@nestjs/config';
+
  
 
 
 @Injectable()
 export class PokemonService {
 
+  //creamos una dependencia para traernos el limit de las env 
+  private defaultLimit : number | undefined
+
   //creamos el constructor para traernos el modelo e inyectarlo
   constructor(
     @InjectModel( Pokemon.name)
-    private readonly pokemonModel : Model<Pokemon>
-  ){}
+    private readonly pokemonModel : Model<Pokemon>,
+    private readonly configService : ConfigService
+  ){
+    
+    this.defaultLimit = configService.get<number>('defaultlimit')
+    console.log(this.defaultLimit)
+    
+  }
  
-
+  // CREAMOS LA LOGICA PARA CREAR POKEMON
   async create(createPokemonDto: CreatePokemonDto) {
     createPokemonDto.name= createPokemonDto.name.toLocaleLowerCase()
     // para grabarlo en la base de datos, insertamos el modelo
@@ -33,8 +44,18 @@ export class PokemonService {
     
   }
 
-  findAll() {
-    return `This action returns all pokemon`;
+
+  findAll(pagination:PaginationDto){
+    // hacemos una destructuracion con los valores iniciales
+    const {limit= this.defaultLimit , offset=0} = pagination
+    
+    return this.pokemonModel.find()
+      .limit(limit!)
+      .skip(offset)
+      .sort({  // para que empiece de manera ascendente segun su no
+        no:1
+      })
+      .select('-__v') // para quitar el dato de la version
   }
 
   async findOne(term: string) {
